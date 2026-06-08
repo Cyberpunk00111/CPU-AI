@@ -28,13 +28,17 @@ class TokenShardDataset(Dataset[tuple[torch.Tensor, torch.Tensor]]):
 
     def __len__(self) -> int:
         """Return number of next-token windows in the shard."""
-        return len(self.tokens) - self.seq_length
+        return (len(self.tokens) - 1) // self.seq_length
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Return input and target token windows."""
         if index < 0 or index >= len(self):
             raise IndexError(index)
-        chunk = np.asarray(self.tokens[index : index + self.seq_length + 1], dtype=np.int64)
+        start_idx = index * self.seq_length
+        chunk = np.asarray(
+            self.tokens[start_idx : start_idx + self.seq_length + 1],
+            dtype=np.int64,
+        )
         x = torch.from_numpy(chunk[:-1].copy()).long()
         y = torch.from_numpy(chunk[1:].copy()).long()
         return x, y
