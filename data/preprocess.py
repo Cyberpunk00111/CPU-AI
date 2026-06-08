@@ -10,6 +10,7 @@ RAM (< 4 GB even for 500 K Wikipedia articles).
 from __future__ import annotations
 
 import argparse
+import array
 import logging
 from pathlib import Path
 
@@ -52,9 +53,17 @@ def preprocess(config_path: str | Path) -> tuple[Path, Path]:
 
     logger.info("Streaming corpus from %s", corpus_path)
 
-    all_tokens: list[int] = []
+    # Use a temporary file to store token IDs incrementally on disk.
+    # This prevents Out Of Memory (OOM) errors in limited-RAM environments.
+    temp_path = config.data.train_path.parent / "temp_tokens.bin"
+    temp_path.parent.mkdir(parents=True, exist_ok=True)
+    if temp_path.exists():
+        temp_path.unlink()
+
+    token_buffer = array.array("H")  # 'H' is unsigned 16-bit short (uint16)
     sample_buf: list[str] = []
     sample_count = 0
+    total_tokens = 0
 
     with corpus_path.open("r", encoding="utf-8", errors="replace") as fh:
         for raw_line in fh:
@@ -64,15 +73,24 @@ def preprocess(config_path: str | Path) -> tuple[Path, Path]:
                 text = " ".join(sample_buf).strip()
                 if text:
                     ids = tokenizer.encode(text, add_special_tokens=False)
-                    all_tokens.extend(ids)
-                    all_tokens.append(tokenizer.eos_id)
+                    token_buffer.extend(ids)
+                    token_buffer.append(tokenizer.eos_id)
+                    total_tokens += len(ids) + 1
                 sample_buf = []
                 sample_count += 1
+
+                # Flush token buffer to disk periodically (every 1,000,000 tokens)
+                # to keep RAM usage extremely low (~50MB overhead).
+                if len(token_buffer) >= 1_000_000:
+                    with temp_path.open("ab") as tfh:
+                        token_buffer.tofile(tfh)
+                    token_buffer = array.array("H")
+
                 if sample_count % _LOG_EVERY == 0:
                     logger.info(
                         "Processed %d samples | %d tokens accumulated",
                         sample_count,
-                        len(all_tokens),
+                        total_tokens,
                     )
             else:
                 sample_buf.append(line)
@@ -82,30 +100,62 @@ def preprocess(config_path: str | Path) -> tuple[Path, Path]:
         text = " ".join(sample_buf).strip()
         if text:
             ids = tokenizer.encode(text, add_special_tokens=False)
-            all_tokens.extend(ids)
+            token_buffer.extend(ids)
+            total_tokens += len(ids)
 
-    total_tokens = len(all_tokens)
+    if len(token_buffer) > 0:
+        with temp_path.open("ab") as tfh:
+            token_buffer.tofile(tfh)
+
     logger.info(
         "Corpus fully tokenised: %d samples → %d tokens", sample_count, total_tokens
     )
     if total_tokens == 0:
+        if temp_path.exists():
+            temp_path.unlink()
         raise ValueError("No tokens produced — check corpus format and tokenizer.")
 
     # 90/10 train/validation split by token index.
     split_index = int(total_tokens * 0.9)
-    train_arr = np.asarray(all_tokens[:split_index], dtype=np.uint16)
-    val_arr = np.asarray(all_tokens[split_index:], dtype=np.uint16)
+    split_byte_index = split_index * 2  # 2 bytes per uint16 token
 
     config.data.train_path.parent.mkdir(parents=True, exist_ok=True)
     config.data.val_path.parent.mkdir(parents=True, exist_ok=True)
-    train_arr.tofile(config.data.train_path)
-    val_arr.tofile(config.data.val_path)
+
+    # Read the temporary binary file in chunks and write them to train.bin and val.bin.
+    chunk_size = 64 * 1024 * 1024  # 64 MB chunk size
+    bytes_written = 0
+
+    with temp_path.open("rb") as sfh, \
+         config.data.train_path.open("wb") as trfh, \
+         config.data.val_path.open("wb") as vafh:
+
+        while True:
+            data = sfh.read(chunk_size)
+            if not data:
+                break
+
+            if bytes_written + len(data) <= split_byte_index:
+                trfh.write(data)
+            elif bytes_written >= split_byte_index:
+                vafh.write(data)
+            else:
+                # Chunk spans the 90/10 split boundary.
+                split_offset = split_byte_index - bytes_written
+                trfh.write(data[:split_offset])
+                vafh.write(data[split_offset:])
+
+            bytes_written += len(data)
+
+    # Clean up the temporary file.
+    if temp_path.exists():
+        temp_path.unlink()
 
     logger.info(
-        "Wrote %d train tokens to %s", len(train_arr), config.data.train_path
+        "Wrote %d train tokens to %s", split_index, config.data.train_path
     )
     logger.info(
-        "Wrote %d val tokens to %s", len(val_arr), config.data.val_path
+        "Wrote %d val tokens to %s", total_tokens - split_index, config.data.val_path
     )
     return config.data.train_path, config.data.val_path
 
