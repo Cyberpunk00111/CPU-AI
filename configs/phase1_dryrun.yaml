@@ -18,10 +18,10 @@ training:
   beta1: 0.9
   beta2: 0.95
   warmup_steps: 2
-  max_steps: 3
+  max_steps: 5
   grad_clip: 1.0
-  save_every: 2
-  eval_every: 2
+  save_every: 4
+  eval_every: 4
   eval_iters: 2
   seed: 42
 

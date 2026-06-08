@@ -69,6 +69,50 @@ class Trainer:
         self.val_loader = self._make_loader(config.data.val_path, shuffle=False)
         self.checkpoint_dir = Path(config.logging.log_dir) / "checkpoints"
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self.start_step = 0
+        self._load_latest_checkpoint_if_exists()
+
+    def _load_latest_checkpoint_if_exists(self) -> None:
+        """Scan logs/checkpoints for existing checkpoints and resume training."""
+        checkpoint_files = list(self.checkpoint_dir.glob("cognicore_step_*.pt"))
+        if not checkpoint_files:
+            return
+
+        def get_step(path: Path) -> int:
+            try:
+                return int(path.stem.split("_")[-1])
+            except ValueError:
+                return -1
+
+        latest_checkpoint = max(checkpoint_files, key=get_step)
+        step = get_step(latest_checkpoint)
+        if step < 0:
+            return
+
+        if step >= self.config.training.max_steps:
+            logger.info(
+                "Found checkpoint at step %d, which is >= max_steps (%d). Skipping load.",
+                step,
+                self.config.training.max_steps,
+            )
+            return
+
+        logger.info(
+            "Found existing checkpoint: %s. Resuming training from step %d...",
+            latest_checkpoint,
+            step,
+        )
+        try:
+            checkpoint = torch.load(latest_checkpoint, map_location=self.device)
+            self.model.load_state_dict(checkpoint["model"])
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+            self.start_step = step
+        except Exception as exc:
+            logger.exception(
+                "Failed to load checkpoint at %s: %s. Starting from scratch.",
+                latest_checkpoint,
+                exc,
+            )
 
     def _make_loader(
         self, path: Path, shuffle: bool
@@ -122,7 +166,7 @@ class Trainer:
         """Run the configured training loop."""
         self.model.train()
         logger.info("Training hyperparameters: %s", self.config.training.model_dump())
-        step = 0
+        step = self.start_step
         while step < self.config.training.max_steps:
             for input_ids, targets in self.train_loader:
                 input_ids = input_ids.to(self.device, non_blocking=True)
