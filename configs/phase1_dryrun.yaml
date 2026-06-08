@@ -22,6 +22,7 @@ training:
   grad_clip: 1.0
   save_every: 2
   eval_every: 2
+  eval_iters: 2
   seed: 42
 
 data:

@@ -102,10 +102,12 @@ class Trainer:
 
     @torch.no_grad()
     def evaluate(self) -> float:
-        """Compute mean validation loss over one validation pass."""
+        """Compute mean validation loss over a subset of validation passes."""
         self.model.eval()
         losses: list[float] = []
-        for input_ids, targets in self.val_loader:
+        for i, (input_ids, targets) in enumerate(self.val_loader):
+            if i >= self.config.training.eval_iters:
+                break
             input_ids = input_ids.to(self.device, non_blocking=True)
             targets = targets.to(self.device, non_blocking=True)
             output = self.model(input_ids, targets)

@@ -58,6 +58,7 @@ class TrainingConfig(BaseModel):
     grad_clip: float = Field(gt=0.0)
     save_every: int = Field(gt=0)
     eval_every: int = Field(gt=0)
+    eval_iters: int = Field(default=200, gt=0)
     seed: int
 
 
