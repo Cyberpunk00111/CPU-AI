@@ -1,0 +1,43 @@
+model:
+  vocab_size: 8192
+  embedding_dim: 256
+  num_layers: 6
+  num_heads: 8
+  num_kv_heads: 2
+  ffn_hidden_dim: 1024
+  max_seq_length: 512
+  dropout: 0.1
+  weight_bits: 1.58
+  activation_bits: 8
+  norm_eps: 1.0e-6
+
+training:
+  batch_size: 16
+  learning_rate: 3.0e-4
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  warmup_steps: 200
+  max_steps: 50000
+  grad_clip: 1.0
+  save_every: 500
+  eval_every: 250
+  seed: 42
+
+data:
+  train_path: "data/phase1/train.bin"
+  val_path: "data/phase1/val.bin"
+  raw_dir: "data/raw"
+  corpus_path: "data/phase1/corpus.txt"
+  num_workers: 0
+  tokenizer_path: "cognicore/model/tokenizer"
+
+cpu:
+  num_threads: 0
+  use_gradient_checkpointing: true
+  compile: false
+
+logging:
+  log_dir: "logs"
+  wandb: false
+  log_every: 50

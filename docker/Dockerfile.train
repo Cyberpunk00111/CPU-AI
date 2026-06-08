@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY pyproject.toml README.md ./
+COPY cognicore ./cognicore
+COPY data ./data
+COPY configs ./configs
+COPY scripts ./scripts
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir torch torchvision torchaudio \
+    && pip install --no-cache-dir ".[dev]"
+
+CMD ["bash", "scripts/train_phase1.sh"]
