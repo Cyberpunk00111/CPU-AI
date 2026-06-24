@@ -8,6 +8,8 @@ node_modules/
 frontend/dist/
 
 logs/
+logs_phase2/
+logs_phase3/
 data/raw/
 data/phase*/
 data/demo/

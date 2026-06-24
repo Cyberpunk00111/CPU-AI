@@ -39,6 +39,6 @@ cpu:
   compile: false
 
 logging:
-  log_dir: "logs_phase2"
+  log_dir: "logs"
   wandb: false
   log_every: 50
