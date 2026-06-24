@@ -30,7 +30,7 @@ data:
   val_path: "data/phase3/val.bin"
   raw_dir: "data/raw"
   corpus_path: "data/phase3/corpus.txt"
-  num_workers: 4
+  num_workers: 0
   tokenizer_path: "cognicore/model/tokenizer_phase3"
 
 cpu:

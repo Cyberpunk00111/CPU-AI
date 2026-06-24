@@ -12,7 +12,7 @@ model:
   norm_eps: 1.0e-6
 
 training:
-  batch_size: 16
+  batch_size: 8
   learning_rate: 2.0e-4
   weight_decay: 0.1
   beta1: 0.9
@@ -30,7 +30,7 @@ data:
   val_path: "data/phase2/val.bin"
   raw_dir: "data/raw"
   corpus_path: "data/phase2/corpus.txt"
-  num_workers: 4
+  num_workers: 0
   tokenizer_path: "cognicore/model/tokenizer_phase2"
 
 cpu:
