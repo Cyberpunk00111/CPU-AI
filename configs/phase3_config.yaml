@@ -31,7 +31,7 @@ data:
   raw_dir: "data/raw"
   corpus_path: "data/phase3/corpus.txt"
   num_workers: 4
-  tokenizer_path: "cognicore/model/tokenizer"
+  tokenizer_path: "cognicore/model/tokenizer_phase3"
 
 cpu:
   num_threads: 0
