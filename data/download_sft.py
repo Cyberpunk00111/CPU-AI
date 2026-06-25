@@ -6,7 +6,11 @@ import argparse
 import logging
 import random
 from collections.abc import Iterable
+import sys
 from pathlib import Path
+
+# Add current working directory to path for imports
+sys.path.append(str(Path.cwd()))
 
 from datasets import load_dataset
 

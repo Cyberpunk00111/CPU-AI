@@ -12,6 +12,9 @@ import random
 import sys
 from pathlib import Path
 
+# Add current working directory to path for imports
+sys.path.append(str(Path.cwd()))
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader

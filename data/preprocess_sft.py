@@ -5,7 +5,11 @@ from __future__ import annotations
 import argparse
 import array
 import logging
+import sys
 from pathlib import Path
+
+# Add current working directory to path for imports
+sys.path.append(str(Path.cwd()))
 
 import numpy as np
 
