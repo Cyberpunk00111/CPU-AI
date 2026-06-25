@@ -67,6 +67,8 @@ class CogniCoreInference:
         max_tokens: int,
         temperature: float,
         top_k: int,
+        repetition_penalty: float = 1.3,
+        top_p: float = 0.9,
     ) -> Iterator[str]:
         """Yield decoded text fragments token by token.
 
@@ -75,18 +77,40 @@ class CogniCoreInference:
             max_tokens: Maximum number of generated tokens.
             temperature: Sampling temperature.
             top_k: Top-k sampling cutoff.
+            repetition_penalty: Penalty factor for repeated tokens (> 1.0).
+            top_p: Nucleus sampling probability threshold (< 1.0).
 
         Yields:
             Decoded token fragments.
         """
-        input_ids = torch.tensor([self.tokenizer.encode(prompt)], dtype=torch.long)
+        input_ids = torch.tensor([self.tokenizer.encode(prompt, add_special_tokens=False)], dtype=torch.long)
         generated = input_ids
         for _ in range(max_tokens):
             context = generated[:, -self.config.model.max_seq_length :]
             logits = self.model(context).logits[:, -1, :] / max(temperature, 1.0e-6)
+            
+            # Apply repetition penalty
+            unique_tokens = set(generated[0].tolist())
+            for token_id in unique_tokens:
+                logit_val = logits[0, token_id].item()
+                if logit_val > 0:
+                    logits[0, token_id] /= repetition_penalty
+                else:
+                    logits[0, token_id] *= repetition_penalty
+                    
             if top_k > 0:
                 values, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits = logits.masked_fill(logits < values[:, [-1]], float("-inf"))
+                
+            if top_p < 1.0:
+                sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+                cumulative_probs = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
+                sorted_indices_to_remove = cumulative_probs > top_p
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 0] = 0
+                indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
+                logits = logits.masked_fill(indices_to_remove, float("-inf"))
+                
             probs = torch.softmax(logits, dim=-1)
             next_token = torch.multinomial(probs, num_samples=1)
             token_id = int(next_token.item())
