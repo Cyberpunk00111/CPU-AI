@@ -1,0 +1,44 @@
+model:
+  vocab_size: 16384
+  embedding_dim: 512
+  num_layers: 10
+  num_heads: 8
+  num_kv_heads: 2
+  ffn_hidden_dim: 2048
+  max_seq_length: 1024
+  dropout: 0.1
+  weight_bits: 1.58
+  activation_bits: 8
+  norm_eps: 1.0e-6
+
+training:
+  batch_size: 8
+  learning_rate: 2.0e-5
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  warmup_steps: 500
+  max_steps: 5000
+  grad_clip: 1.0
+  save_every: 1000
+  eval_every: 500
+  eval_iters: 200
+  seed: 42
+
+data:
+  train_path: "data/sft/train.bin"
+  val_path: "data/sft/val.bin"
+  raw_dir: "data/raw"
+  corpus_path: "data/sft/corpus.txt"
+  num_workers: 0
+  tokenizer_path: "cognicore/model/tokenizer_phase2"
+
+cpu:
+  num_threads: 0
+  use_gradient_checkpointing: true
+  compile: false
+
+logging:
+  log_dir: "logs_sft"
+  wandb: false
+  log_every: 50
